@@ -95,9 +95,15 @@ let related = [];
   const handleColorChange = (id, color) =>
     setNotes(prev => prev.map(n => n.id === id ? { ...n, color } : n));
   const handleEditComplete = (id, title) => {
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, title } : n));
+    // 메모 내용이 비어있으면 삭제
+    if (title.trim() === '') {
+      setNotes(prev => prev.filter(n => n.id !== id));
+    } else {
+      setNotes(prev => prev.map(n => n.id === id ? { ...n, title } : n));
+    }
     setEditingId(null);
   };
+
   const handleDelete = id =>
     setNotes(prev => prev.filter(n => n.id !== id));
   const handleAddNote = () =>
