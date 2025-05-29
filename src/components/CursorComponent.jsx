@@ -88,7 +88,6 @@ export default function CursorComponent({ note, onCombine, onMove, onResize, onC
     display: 'flex', justifyContent: 'center', alignItems: 'center',
     boxShadow: '2px 2px 6px rgba(0,0,0,0.2)', cursor,
     opacity: isDragging ? 0.5 : 1, userSelect: editing ? 'text' : 'none',
-    transition: 'border-radius 0.2s ease'
   };
 
   const setRefs = node => { dragRef(node); dropRef(node); wrapperRef.current = node; };
