@@ -2,7 +2,11 @@
 import React from 'react';
 
 export default function ContextMenu({ x, y, onEdit, onDelete, onColorChange, onClose }) {
-  const style = { position: 'absolute', top: y, left: x, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 1000 };
+  const style = {
+    position: 'absolute', top: y, left: x,
+    background: '#fff', border: '1px solid #ccc', borderRadius: '4px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 1000,
+  };
   const itemStyle = { padding: '0.5rem 1rem', cursor: 'pointer' };
 
   return (

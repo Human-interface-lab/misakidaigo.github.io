@@ -5,12 +5,12 @@ import { ItemTypes } from './StickyNoteTypes';
 
 export default function CursorComponent({ note, onCombine, onMove, onResize, onContext, onEditStart, editing, children }) {
   const wrapperRef = useRef(null);
-  const [cursor, setCursor] = useState(editing ? 'text' : 'move');
+  const [cursor, setCursor] = useState(editing ? 'text' : 'grab');
   const [resizing, setResizing] = useState(false);
   const [resizeDir, setResizeDir] = useState(null);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [startSize, setStartSize] = useState({ size: note.width });
-  const [startCenter, setStartCenter] = useState({ x: note.x + note.width/2, y: note.y + note.width/2 });
+  const [startCenter, setStartCenter] = useState({ x: note.x + note.width / 2, y: note.y + note.width / 2 });
   const EDGE = 8;
 
   const [{ isDragging }, dragRef] = useDrag({
@@ -40,7 +40,7 @@ export default function CursorComponent({ note, onCombine, onMove, onResize, onC
     if (x >= w - EDGE && y >= h - EDGE) { dir = 'se'; setCursor('se-resize'); }
     else if (x >= w - EDGE) { dir = 'e'; setCursor('e-resize'); }
     else if (y >= h - EDGE) { dir = 's'; setCursor('s-resize'); }
-    else { dir = null; setCursor(editing ? 'text' : 'move'); }
+    else { dir = null; setCursor(editing ? 'text' : 'grab'); }
     setResizeDir(dir);
   };
 
@@ -50,10 +50,10 @@ export default function CursorComponent({ note, onCombine, onMove, onResize, onC
     setResizing(true);
     setStartPos({ x: e.clientX, y: e.clientY });
     setStartSize({ size: note.width });
-    setStartCenter({ x: note.x + note.width/2, y: note.y + note.width/2 });
+    setStartCenter({ x: note.x + note.width / 2, y: note.y + note.width / 2 });
     setCursor(resizeDir + '-resize');
 
-    const onDocMouseMove = ev => {
+    const handleDocumentMouseMove = ev => {
       const dx = ev.clientX - startPos.x;
       const dy = ev.clientY - startPos.y;
       let delta = 0;
@@ -61,18 +61,19 @@ export default function CursorComponent({ note, onCombine, onMove, onResize, onC
       else if (resizeDir === 'e') delta = dx;
       else if (resizeDir === 's') delta = dy;
       const newSize = Math.max(startSize.size + delta, 50);
-      const newX = startCenter.x - newSize/2;
-      const newY = startCenter.y - newSize/2;
+      const newX = startCenter.x - newSize / 2;
+      const newY = startCenter.y - newSize / 2;
       onResize(note.id, newX, newY, newSize);
     };
-    const onDocMouseUp = ev => {
+
+    const handleDocumentMouseUp = ev => {
       setResizing(false);
-      document.removeEventListener('mousemove', onDocMouseMove);
-      document.removeEventListener('mouseup', onDocMouseUp);
+      document.removeEventListener('mousemove', handleDocumentMouseMove);
+      document.removeEventListener('mouseup', handleDocumentMouseUp);
       updateCursor(ev);
     };
-    document.addEventListener('mousemove', onDocMouseMove);
-    document.addEventListener('mouseup', onDocMouseUp);
+    document.addEventListener('mousemove', handleDocumentMouseMove);
+    document.addEventListener('mouseup', handleDocumentMouseUp);
   };
 
   const handleContext = e => { e.preventDefault(); onContext(note.id, e.clientX, e.clientY); };
@@ -82,9 +83,12 @@ export default function CursorComponent({ note, onCombine, onMove, onResize, onC
     position: 'absolute', top: note.y, left: note.x,
     width: note.width, height: note.width,
     background: note.color,
-    borderRadius: '40%', display: 'flex', justifyContent: 'center', alignItems: 'center',
+    padding: '0.5rem',
+    borderRadius: '40%',
+    display: 'flex', justifyContent: 'center', alignItems: 'center',
     boxShadow: '2px 2px 6px rgba(0,0,0,0.2)', cursor,
     opacity: isDragging ? 0.5 : 1, userSelect: editing ? 'text' : 'none',
+    transition: 'border-radius 0.2s ease'
   };
 
   const setRefs = node => { dragRef(node); dropRef(node); wrapperRef.current = node; };
@@ -100,7 +104,3 @@ export default function CursorComponent({ note, onCombine, onMove, onResize, onC
     >{children}</div>
   );
 }
-
-
-
-
