@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Canvas from './components/Canvas';
 import ContextMenu from './components/ContextMenu';
 import { systemMessage, getCombinePrompt, getExpandPrompt,} from './prompts';
+import { logConversation, removeLogsForNote } from './utils/logger';
 
 function App() {
   const [notes, setNotes] = useState([]);
@@ -68,6 +69,7 @@ function App() {
           }
         ];
       });
+      logConversation(newNoteId, 'combine', prompt, related[0] || '');
 
       // 기존 connections 재매핑: from/to가 제거된 노트였으면 새 노트 ID로 대체
       setConnections(prev =>
@@ -130,6 +132,11 @@ function App() {
         ...prev,
         ...newNotes.map(n => ({ from: id, to: n.id }))
       ]);
+
+      newNotes.forEach(n =>
+      logConversation(n.id, 'expand', prompt, n.title)
+    );
+    
     } catch (err) {
       console.error(err);
       alert(`AI 확장 오류: ${err.message}`);
@@ -149,7 +156,11 @@ function App() {
     }
     setEditingId(null);
   };
-  const handleDelete   = id => setNotes(prev => prev.filter(n => n.id !== id));
+  const handleDelete   = id => {setNotes(prev => prev.filter(n => n.id !== id));
+    // ④ 삭제된 노트 관련 로그도 제거
+    removeLogsForNote(id);
+  };
+  
   const handleAddNote  = () => setNotes(prev => [
     ...prev,
     { id: Date.now().toString(), title: 'New Clay', x: 150, y: 150, width: 150, color: 'yellow' }
