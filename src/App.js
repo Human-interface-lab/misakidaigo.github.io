@@ -5,13 +5,11 @@ import ContextMenu from './components/ContextMenu';
 import { systemMessage, getCombinePrompt, getExpandPrompt,} from './prompts';
 
 function App() {
-  const [notes, setNotes] = useState([
-    { id: 'a', title: 'Idea A', x: 50,  y: 50,  width: 150, color: 'yellow' },
-    { id: 'b', title: 'Idea B', x: 200, y: 100, width: 150, color: 'yellow' },
-  ]);
+  const [notes, setNotes] = useState([]);
   const [connections, setConnections] = useState([]);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
   const [editingId, setEditingId] = useState(null);
+  
 
 
  
