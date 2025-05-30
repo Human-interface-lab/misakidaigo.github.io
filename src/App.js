@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Canvas from './components/Canvas';
 import ContextMenu from './components/ContextMenu';
-import { systemMessage, getCombinePrompt, getExpandPrompt,getAnswerPrompt } from './prompts';
+import { systemMessage, getCombinePrompt, getExpandPrompt,} from './prompts';
 
 function App() {
   const [notes, setNotes] = useState([
@@ -14,11 +14,7 @@ function App() {
   const [editingId, setEditingId] = useState(null);
 
 
-  // Notes-based Answer state
-  const [originalQuestion, setOriginalQuestion] = useState('');
-  const [noteAnswer, setNoteAnswer]     = useState('');
-  const [answerLoading, setAnswerLoading] = useState(false);
-  const [answerError, setAnswerError]     = useState('');
+ 
 
   // 두 노트를 합치고, 메타인지 질문 1개만 생성
   const handleCombine = async (fromId, toId) => {
@@ -164,75 +160,11 @@ function App() {
   const handleEditStart= id => setEditingId(id);
   const closeContext   = () => setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
 
-  const handleAnswerFromNotes = async () => {
-   if (!process.env.REACT_APP_OPENAI_API_KEY) {
-      setAnswerError('환경 변수가 설정되지 않았습니다. .env 파일에 REACT_APP_OPENAI_API_KEY를 추가하고 다시 시작하세요.');
-      return;
-    }
-    setAnswerLoading(true);
-   setNoteAnswer('');
-    setAnswerError('');
-    try {
-      const prompt = getAnswerPrompt(notes, originalQuestion);
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemMessage },
-            { role: 'user',   content: prompt }
-          ],
-          temperature: 0.5,
-          max_tokens: 200
-        })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setNoteAnswer(data.choices[0].message.content.trim());
-    } catch (err) {
-      console.error(err);
-      setAnswerError(`답변 생성 중 오류: ${err.message}`);
-    } finally {
-      setAnswerLoading(false);
-    }
-  };
-
+ 
   
   return (
     <div>
-       {/* Notes-based Answer Panel */}
-      <div style={{ padding: '1rem', borderTop: '1px solid #ccc' }}>
-        <h2>노트 기반 답변 생성</h2>
-        <input
-          type="text"
-          value={originalQuestion}
-          onChange={e => setOriginalQuestion(e.target.value)}
-          placeholder="처음에 했던 질문을 입력하세요"
-          style={{ width: '60%', padding: '0.5rem' }}
-        />
-        <button
-          onClick={handleAnswerFromNotes}
-          disabled={answerLoading}
-          style={{ marginLeft: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
-        >
-          {answerLoading ? '...' : '노트로 답변 생성'}
-        </button>
-        {answerError && (
-          <div style={{ marginTop: '0.5rem', color: 'red' }}>
-            <strong>오류:</strong> {answerError}
-          </div>
-        )}
-        {!answerError && noteAnswer && (
-          <div style={{ marginTop: '0.5rem' }}>
-            <strong>답변:</strong> {noteAnswer}
-          </div>
-        )}
-      </div>
-
+      
       {/* Controls */}
       <button onClick={handleAddNote} style={{ margin:'1rem', padding:'0.5rem 1rem', cursor:'pointer' }}>
         New Clay

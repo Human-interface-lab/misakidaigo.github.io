@@ -37,22 +37,3 @@ without any additional commentary, explanation, greetings, or formatting.
 `.trim();
 }
 
-/** 
- * 노트 목록(notes)과 사용자의 질문(question)을 받아,
- * 해당 노트들을 컨텍스트로 사용해 질문에 답하도록 유도하는 프롬프트를 생성합니다.
- */
-export function getAnswerPrompt(notes, question) {
-  const userLang = detectLanguage(notes.map(n => n.title).join(' '));
-  const noteList = notes.map(n => `- ${n.title}`).join('\n');
-  return `
-Respond in ${userLang}.
-You have the following notes as context:
-${noteList}
-
-Using only this context, answer the question:
-"${question}"
-
-Provide a concise, direct answer in the same language,
-and do NOT include any explanations, greetings, or extra text.
-`.trim();
-}
