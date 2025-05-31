@@ -12,15 +12,29 @@ function initLogs() {
 }
 
 /**
- * noteId, action 타입, 프롬프트, 응답, 타임스탬프를 저장
+ * 일반 로그 (combine 등). noteId, action, prompt, response, timestamp를 저장
  */
 export function logConversation(noteId, action, prompt, response) {
   initLogs();
   const logs = JSON.parse(localStorage.getItem(LOG_KEY));
   logs.push({
     noteId,
-    action,       // 'combine' | 'expand'
+    action,
     prompt,
+    response,
+    timestamp: new Date().toISOString()
+  });
+  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+}
+
+/**
+ * expand 전용 로그: action, response, timestamp만 저장
+ */
+export function logExpand(response) {
+  initLogs();
+  const logs = JSON.parse(localStorage.getItem(LOG_KEY));
+  logs.push({
+    action: 'expand',
     response,
     timestamp: new Date().toISOString()
   });
