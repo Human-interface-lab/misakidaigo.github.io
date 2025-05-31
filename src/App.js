@@ -1,14 +1,13 @@
 // src/App.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import Canvas from './components/Canvas';
-import ContextMenu from './components/ContextMenu';
+import ContextMenuRenderer from './components/ContextMenuRenderer';
 import { systemMessage, getCombinePrompt, getExpandPrompt } from './prompts';
 import { logConversation, logExpand, removeLogsForNote, clearLogs } from './utils/logger';
 
 function App() {
   const [notes, setNotes] = useState([]);
   const [connections, setConnections] = useState([]);
-  // ContextMenu 정보를 저장 (좌표, 노트 ID, 표시 여부)
   const [contextMenu, setContextMenu] = useState({
     visible: false,
     x: 0,
@@ -17,10 +16,7 @@ function App() {
   });
   const [editingId, setEditingId] = useState(null);
 
-  // ContextMenu DOM 노드를 참조하기 위한 ref
-  const menuRef = useRef(null);
-
-  // 두 노트를 합치고, 메타인지 질문 1개만 생성
+  // 노트 합치기 핸들러
   const handleCombine = async (fromId, toId) => {
     const noteA = notes.find(n => n.id === fromId);
     const noteB = notes.find(n => n.id === toId);
@@ -54,7 +50,6 @@ function App() {
       const match = content.match(/\[.*?\]/s);
       const related = match ? JSON.parse(match[0]).slice(0, 1) : [];
 
-      // 새 노트 위치: 두 원의 중간 지점
       const centerX = (noteA.x + noteB.x) / 2;
       const centerY = (noteA.y + noteB.y) / 2;
       const newNoteId = `combined_${Date.now()}`;
@@ -78,10 +73,9 @@ function App() {
         }
       ]);
 
-      // 합치기 로그 기록
       logConversation(newNoteId, 'combine', prompt, related[0] || '');
 
-      // 기존 connections 재매핑: from/to가 제거된 노트였으면 새 노트 ID로 대체
+      // 연결선 재매핑
       setConnections(prev =>
         prev.map(c => ({
           from: [fromId, toId].includes(c.from) ? newNoteId : c.from,
@@ -96,7 +90,7 @@ function App() {
     }
   };
 
-  // 두 노트를 확장: “프롬프트 생성” 노트와 “복사 노트” 생성
+  // 기본 확장: “프롬프트 생성” 노트와 “복사 노트” 생성
   const handleExpand = (id) => {
     const note = notes.find(n => n.id === id);
     if (!note) return;
@@ -118,23 +112,88 @@ function App() {
       };
     });
 
-    // 새 노트 추가 및 연결
     setNotes(prev => [...prev, ...newNotes]);
     setConnections(prev => [
       ...prev,
       ...newNotes.map(n => ({ from: id, to: n.id }))
     ]);
 
-    // expand 로그 기록 (noteId, action='expand', response, timestamp)
     newNotes.forEach((n, idx) => {
       const responseText = idx === 0
         ? `프롬프트 생성: ${n.id}`
         : `아이디어 확장 복사: ${n.title}`;
-
       logExpand(n.id, responseText);
     });
 
     setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
+  };
+
+  // 심화 기능: API 호출하여 2개의 구체적 질문 메모 생성
+  const handleDeepExpand = async (id) => {
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+    if (!process.env.REACT_APP_OPENAI_API_KEY) {
+      alert('.env에 REACT_APP_OPENAI_API_KEY를 설정하고 앱을 재시작하세요.');
+      return;
+    }
+
+    try {
+      const deepPrompt = `
+        Provide exactly 2 detailed, specific questions for deeper reflection on "${note.title}".
+        Respond only with a JSON array of two strings, without any extra text.
+      `.trim();
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemMessage },
+            { role: 'user',   content: deepPrompt }
+          ],
+          temperature: 0.6,
+          max_tokens: 100
+        })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const content = data.choices[0].message.content.trim();
+      const match = content.match(/\[.*?\]/s);
+      const questions = match ? JSON.parse(match[0]).slice(0, 2) : [];
+
+      const dist = 200;
+      const angles = [-Math.PI / 6, Math.PI / 6];
+      const timestamp = Date.now();
+
+      const newDeepNotes = questions.map((q, idx) => ({
+        id:    `${id}_deep${idx}_${timestamp}`,
+        title: q,
+        x:     note.x + Math.cos(angles[idx]) * dist,
+        y:     note.y + Math.sin(angles[idx]) * dist,
+        width: 200,
+        color: 'violet',
+        type:  'deepNote'
+      }));
+
+      setNotes(prev => [...prev, ...newDeepNotes]);
+      setConnections(prev => [
+        ...prev,
+        ...newDeepNotes.map(n => ({ from: id, to: n.id }))
+      ]);
+
+      newDeepNotes.forEach(n => {
+        logConversation(n.id, 'deepExpand', deepPrompt, n.title);
+      });
+    } catch (err) {
+      console.error(err);
+      alert(`심화 확장 중 오류: ${err.message}`);
+    } finally {
+      setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
+    }
   };
 
   // 기타 핸들러들
@@ -165,88 +224,6 @@ function App() {
   const handleEditStart = id => setEditingId(id);
   const closeContext = () => setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
 
-  // ContextMenu에 넘길 메뉴 옵션을 노트 타입별로 분기
-  const renderContextMenu = () => {
-    if (!contextMenu.visible) return null;
-    const { noteId, x, y } = contextMenu;
-    const note = notes.find(n => n.id === noteId);
-    if (!note) return null;
-
-    // “프롬프트 생성” 노트(type: 'promptNote')의 메뉴: 5가지 항목 (1,2,3,4,5)
-    if (note.type === 'promptNote') {
-      const promptMenu = [
-        { label: '1', onClick: () => alert('선택: 1') },
-        { label: '2', onClick: () => alert('선택: 2') },
-        { label: '3', onClick: () => alert('선택: 3') },
-        { label: '4', onClick: () => alert('선택: 4') },
-        { label: '5', onClick: () => alert('선택: 5') }
-      ];
-      return (
-        <ContextMenu
-          ref={menuRef}
-          x={x}
-          y={y}
-          menuOptions={promptMenu}
-          onClose={closeContext}
-        />
-      );
-    }
-
-    // 그 외 일반 노트 메뉴
-    const normalMenu = [
-      {
-        label: '합치기',
-        onClick: () => {
-          // 두 번째 ID를 어떻게 넘길지는 드래그/컨텍스트 로직에 따름
-          // 예: handleCombine(noteId, 다른노트ID)
-        }
-      },
-      {
-        label: '확장',
-        onClick: () => handleExpand(noteId)
-      },
-      {
-        label: '편집',
-        onClick: () => setEditingId(noteId)
-      },
-      {
-        label: '삭제',
-        onClick: () => handleDelete(noteId)
-      },
-      {
-        label: '색 선택',
-        onClick: () => handleColorChange(noteId, 'red')
-      }
-    ];
-    return (
-      <ContextMenu
-        ref={menuRef}
-        x={x}
-        y={y}
-        menuOptions={normalMenu}
-        onClose={closeContext}
-      />
-    );
-  };
-
-  // ContextMenu 외부 클릭 시 메뉴 닫기
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        contextMenu.visible &&
-        menuRef.current &&
-        !event.target.closest('.context-menu')
-      ) {
-        closeContext();
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [contextMenu.visible]);
-
   return (
     <div>
       {/* 로그 전체 삭제 버튼 */}
@@ -275,7 +252,6 @@ function App() {
         notes={notes}
         connections={connections}
         onCombine={handleCombine}
-        onExpand={handleExpand}
         onMove={handleMove}
         onResize={handleResize}
         onContext={handleContext}
@@ -285,8 +261,18 @@ function App() {
         onEditComplete={handleEditComplete}
       />
 
-      {/* 동적 ContextMenu 출력 */}
-      {renderContextMenu()}
+      {/* ContextMenuRenderer */}
+      <ContextMenuRenderer
+        contextMenu={contextMenu}
+        notes={notes}
+        handlers={{
+          handleExpand,
+          handleDeepExpand,
+          handleDelete,
+          handleColorChange,
+          closeContext
+        }}
+      />
     </div>
   );
 }
