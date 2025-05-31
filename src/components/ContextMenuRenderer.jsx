@@ -13,12 +13,20 @@ import ContextMenu from './ContextMenu';
  *       handleDeepExpand,
  *       handleDelete,
  *       handleColorChange,
+ *       handleCreateDetail,
  *       closeContext
  *     }
  */
 export default function ContextMenuRenderer({ contextMenu, notes, handlers }) {
   const { visible, x, y, noteId } = contextMenu;
-  const { handleExpand, handleDeepExpand, handleDelete, handleColorChange, closeContext } = handlers;
+  const {
+    handleExpand,
+    handleDeepExpand,
+    handleDelete,
+    handleColorChange,
+    handleCreateDetail,
+    closeContext
+  } = handlers;
   const menuRef = useRef(null);
 
   // 메뉴 외부 클릭 시 닫기
@@ -37,36 +45,43 @@ export default function ContextMenuRenderer({ contextMenu, notes, handlers }) {
   }, [visible, closeContext]);
 
   if (!visible) return null;
-
   const note = notes.find(n => n.id === noteId);
   if (!note) return null;
 
-  // --- 메뉴 옵션 설정 ---
   let menuOptions = [];
 
   // 1) New Clay로 생성된 일반 노트(type: 'normal')
   if (note.type === 'normal') {
     menuOptions = [
-      { label: '확장', onClick: () => handleExpand(noteId) },
-      { label: '색 변경', onClick: () => handleColorChange(noteId, 'red') }
+      { label: 'Extend', onClick: () => handleExpand(noteId) },
+      { label: 'Color Change', onClick: () => handleColorChange(noteId, 'red') },
+      { label: 'Delete', onClick: () => handleDelete(noteId) }
     ];
   }
-  // 2) “프롬프트 생성” 노트(type: 'promptNote'): 1,2,3,4,5 메뉴
+  // 2) “프롬프트 생성” 노트(type: 'promptNote'): 5가지 항목
   else if (note.type === 'promptNote') {
     menuOptions = [
-      { label: '1', onClick: () => alert('선택: 1') },
-      { label: '2', onClick: () => alert('선택: 2') },
-      { label: '3', onClick: () => alert('선택: 3') },
-      { label: '4', onClick: () => alert('선택: 4') },
-      { label: '5', onClick: () => alert('선택: 5') }
+      { label: 'Persona', onClick: () => handleCreateDetail(noteId, 'Persona') },
+      { label: 'Tone',     onClick: () => handleCreateDetail(noteId, 'Tone') },
+      { label: 'Audience',     onClick: () => handleCreateDetail(noteId, 'Audience') },
+      { label: 'Example', onClick: () => handleCreateDetail(noteId, 'Example') },
+      { label: 'Format',     onClick: () => handleCreateDetail(noteId, 'Format') },
+      { label: 'Delete', onClick: () => handleDelete(noteId) }
     ];
   }
   // 3) “확장 복사” 노트(type: 'expandCopy') 또는 “심화 질문” 노트(type: 'deepNote')
   else if (note.type === 'expandCopy' || note.type === 'deepNote') {
     menuOptions = [
-      { label: '심화 질문 생성', onClick: () => handleDeepExpand(noteId) },
-      { label: '삭제',         onClick: () => handleDelete(noteId) },
-      { label: '색 변경',      onClick: () => handleColorChange(noteId, 'orange') }
+      { label: 'Deep Expand', onClick: () => handleDeepExpand(noteId) },
+      { label: 'Color Change',      onClick: () => handleColorChange(noteId, 'orange') },
+      { label: 'Delete',         onClick: () => handleDelete(noteId) }
+    ];
+  }
+  // 4) “세부 정보” 노트(type: 'detailNote'): 삭제 및 색 변경
+  else if (note.type === 'detailNote') {
+    menuOptions = [
+      { label: 'Color Change', onClick: () => handleColorChange(noteId, 'lightgray') },
+      { label: 'Delete',    onClick: () => handleDelete(noteId) }
     ];
   }
 

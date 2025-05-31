@@ -16,7 +16,7 @@ function App() {
   });
   const [editingId, setEditingId] = useState(null);
 
-  // 노트 합치기 핸들러
+  // —————— 노트 합치기 ——————
   const handleCombine = async (fromId, toId) => {
     const noteA = notes.find(n => n.id === fromId);
     const noteB = notes.find(n => n.id === toId);
@@ -25,7 +25,6 @@ function App() {
       alert('.env에 REACT_APP_OPENAI_API_KEY를 설정하고 앱을 재시작하세요.');
       return;
     }
-
     try {
       const prompt = getCombinePrompt(noteA.title, noteB.title);
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -50,6 +49,7 @@ function App() {
       const match = content.match(/\[.*?\]/s);
       const related = match ? JSON.parse(match[0]).slice(0, 1) : [];
 
+      // 두 노트 중간에 새 노트 위치
       const centerX = (noteA.x + noteB.x) / 2;
       const centerY = (noteA.y + noteB.y) / 2;
       const newNoteId = `combined_${Date.now()}`;
@@ -73,6 +73,7 @@ function App() {
         }
       ]);
 
+      // 합치기 로그 기록
       logConversation(newNoteId, 'combine', prompt, related[0] || '');
 
       // 연결선 재매핑
@@ -90,7 +91,7 @@ function App() {
     }
   };
 
-  // 기본 확장: “프롬프트 생성” 노트와 “복사 노트” 생성
+  // —————— 기본 확장: “프롬프트 생성” + “복사 노트” ——————
   const handleExpand = (id) => {
     const note = notes.find(n => n.id === id);
     if (!note) return;
@@ -128,7 +129,7 @@ function App() {
     setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
   };
 
-  // 심화 기능: API 호출하여 2개의 구체적 질문 메모 생성
+  // —————— 심화 확장: 두 개의 구체적 질문 생성 ——————
   const handleDeepExpand = async (id) => {
     const note = notes.find(n => n.id === id);
     if (!note) return;
@@ -136,13 +137,11 @@ function App() {
       alert('.env에 REACT_APP_OPENAI_API_KEY를 설정하고 앱을 재시작하세요.');
       return;
     }
-
     try {
       const deepPrompt = `
         Provide exactly 2 detailed, specific questions for deeper reflection on "${note.title}".
         Respond only with a JSON array of two strings, without any extra text.
       `.trim();
-
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -196,6 +195,41 @@ function App() {
     }
   };
 
+  // —————— “Persona, Tone, Audience, Example, Format” 노트 생성 ——————
+  const handleCreateDetail = (originId, detailType) => {
+    const origin = notes.find(n => n.id === originId);
+    if (!origin) return;
+
+    const dist = 200;
+    // “프롬프트 생성” 노트 기준 오른쪽 위(각도: -π/3)로 위치
+    const angle = -Math.PI / 3;
+    const newX = origin.x + Math.cos(angle) * dist;
+    const newY = origin.y + Math.sin(angle) * dist;
+    const newNoteId = `${originId}_detail_${detailType}_${Date.now()}`;
+
+    setNotes(prev => [
+      ...prev,
+      {
+        id:    newNoteId,
+        title: detailType,      // “Persona” or “Tone” 등
+        x:     newX,
+        y:     newY,
+        width: 180,
+        color: 'lightcoral',
+        type:  'detailNote'
+      }
+    ]);
+
+    logConversation(newNoteId, 'detailExpand', `Detail: ${detailType}`, detailType);
+
+    // 연결선 추가
+    setConnections(prev => [
+      ...prev,
+      { from: originId, to: newNoteId }
+    ]);
+    setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
+  };
+
   // 기타 핸들러들
   const handleMove        = (id, x, y)       => setNotes(prev => prev.map(n => n.id === id ? { ...n, x, y } : n));
   const handleResize      = (id, x, y, size) => setNotes(prev => prev.map(n => n.id === id ? { ...n, x, y, width: size } : n));
@@ -224,11 +258,18 @@ function App() {
   const handleEditStart = id => setEditingId(id);
   const closeContext = () => setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
 
+  // —————— 초기화 버튼: 모든 노트와 로그 삭제 ——————
+  const handleResetAll = () => {
+    setNotes([]);
+    setConnections([]);
+    clearLogs();
+  };
+
   return (
     <div>
-      {/* 로그 전체 삭제 버튼 */}
+      {/* 초기화 버튼 (노트 + 로그 모두 삭제) */}
       <button
-        onClick={() => { clearLogs(); alert('로그가 모두 삭제되었습니다.'); }}
+        onClick={handleResetAll}
         style={{
           margin: '1rem',
           padding: '0.5rem 1rem',
@@ -239,10 +280,10 @@ function App() {
           borderRadius: '4px'
         }}
       >
-        로그 삭제
+        Reset All
       </button>
 
-      {/* Controls */}
+      {/* 새 노트 추가 */}
       <button onClick={handleAddNote} style={{ margin: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}>
         New Clay
       </button>
@@ -270,6 +311,7 @@ function App() {
           handleDeepExpand,
           handleDelete,
           handleColorChange,
+          handleCreateDetail,
           closeContext
         }}
       />
