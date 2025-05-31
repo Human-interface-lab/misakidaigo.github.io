@@ -1,19 +1,42 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
-export default function ContextMenu({ x, y, onEdit, onDelete, onColorChange, onExpand, onClose }) {
-  const style = { position: 'absolute', top: y, left: x, background: '#fff', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 1000 };
-  const itemStyle = { padding: '0.5rem 1rem', cursor: 'pointer' };
-
+const ContextMenu = forwardRef(function ContextMenu(
+  { x, y, menuOptions = [], onClose },
+  ref // forwardRef로 전달된 ref
+) {
   return (
-    <div style={style} onMouseLeave={onClose}>
-      <div style={itemStyle} onClick={() => { onEdit(); onClose(); }}>Edit</div>
-      <div style={itemStyle} onClick={() => { onDelete(); onClose(); }}>Delete</div>
-      <hr />
-      <div style={itemStyle} onClick={() => { onColorChange('red'); onClose(); }}>빨강</div>
-      <div style={itemStyle} onClick={() => { onColorChange('yellow'); onClose(); }}>노랑</div>
-      <div style={itemStyle} onClick={() => { onColorChange('blue'); onClose(); }}>파랑</div>
-      <hr />
-      <div style={itemStyle} onClick={() => { onExpand(); onClose(); }}>Extend</div>
+    <div
+      ref={ref}                   // 이 div에야말로 실제로 menuRef.current가 가리켜야 합니다.
+      className="context-menu"
+      style={{
+        position: 'absolute',
+        top: y,
+        left: x,
+        background: '#fff',
+        border: '1px solid #ccc',
+        borderRadius: '4px',
+        zIndex: 1000,
+        minWidth: '120px'
+      }}
+    >
+      {menuOptions.map((opt, idx) => (
+        <div
+          key={idx}
+          onClick={() => {
+            opt.onClick();
+            onClose();
+          }}
+          style={{
+            padding: '0.5rem',
+            cursor: 'pointer',
+            borderBottom: idx < menuOptions.length - 1 ? '1px solid #eee' : 'none'
+          }}
+        >
+          {opt.label}
+        </div>
+      ))}
     </div>
   );
-}
+});
+
+export default ContextMenu;

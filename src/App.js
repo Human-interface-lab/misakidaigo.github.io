@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Canvas from './components/Canvas';
 import ContextMenu from './components/ContextMenu';
 import { systemMessage, getCombinePrompt, getExpandPrompt } from './prompts';
@@ -8,8 +8,17 @@ import { logConversation, logExpand, removeLogsForNote, clearLogs } from './util
 function App() {
   const [notes, setNotes] = useState([]);
   const [connections, setConnections] = useState([]);
-  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
+  // ContextMenu 정보를 저장 (좌표, 노트 ID, 표시 여부)
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    noteId: null
+  });
   const [editingId, setEditingId] = useState(null);
+
+  // ContextMenu DOM 노드를 참조하기 위한 ref
+  const menuRef = useRef(null);
 
   // 두 노트를 합치고, 메타인지 질문 1개만 생성
   const handleCombine = async (fromId, toId) => {
@@ -55,7 +64,7 @@ function App() {
       removeLogsForNote(fromId);
       removeLogsForNote(toId);
 
-      // 새 노트 추가
+      // 새 노트 추가 (type: 'normal')
       setNotes(prev => [
         ...prev,
         {
@@ -64,7 +73,8 @@ function App() {
           x:     centerX,
           y:     centerY,
           width: 150,
-          color: 'yellow'
+          color: 'yellow',
+          type:  'normal'
         }
       ]);
 
@@ -86,13 +96,13 @@ function App() {
     }
   };
 
-  // 두 노트를 확장하고, 로그는 action/response/timestamp만 저장
+  // 두 노트를 확장: “프롬프트 생성” 노트와 “복사 노트” 생성
   const handleExpand = (id) => {
     const note = notes.find(n => n.id === id);
     if (!note) return;
 
     const dist = 200;
-    const angles = [ -Math.PI / 4, Math.PI / 4 ];
+    const angles = [-Math.PI / 4, Math.PI / 4];
     const timestamp = Date.now();
 
     const newNotes = angles.map((angle, idx) => {
@@ -103,7 +113,8 @@ function App() {
         x:     note.x + Math.cos(angle) * dist,
         y:     note.y + Math.sin(angle) * dist,
         width: 150,
-        color: isPromptNote ? 'lightblue' : 'lightgreen'
+        color: isPromptNote ? 'lightblue' : 'lightgreen',
+        type:  isPromptNote ? 'promptNote' : 'expandCopy'
       };
     });
 
@@ -114,19 +125,19 @@ function App() {
       ...newNotes.map(n => ({ from: id, to: n.id }))
     ]);
 
-    // expand 로그 기록: action/response/timestamp만 저장
+    // expand 로그 기록 (noteId, action='expand', response, timestamp)
     newNotes.forEach((n, idx) => {
-      if (idx === 0) {
-        logExpand(`초기 프롬프트 생성: ${n.title}`);
-      } else {
-        logExpand(`확장 노트 제목: ${n.title}`);
-      }
+      const responseText = idx === 0
+        ? `프롬프트 생성: ${n.id}`
+        : `아이디어 확장 복사: ${n.title}`;
+
+      logExpand(n.id, responseText);
     });
 
     setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
   };
 
-  // 나머지 핸들러들
+  // 기타 핸들러들
   const handleMove        = (id, x, y)       => setNotes(prev => prev.map(n => n.id === id ? { ...n, x, y } : n));
   const handleResize      = (id, x, y, size) => setNotes(prev => prev.map(n => n.id === id ? { ...n, x, y, width: size } : n));
   const handleColorChange = (id, color)      => setNotes(prev => prev.map(n => n.id === id ? { ...n, color } : n));
@@ -145,11 +156,96 @@ function App() {
   };
   const handleAddNote = () => setNotes(prev => [
     ...prev,
-    { id: Date.now().toString(), title: 'New Clay', x: 150, y: 150, width: 150, color: 'yellow' }
+    { id: Date.now().toString(), title: 'New Clay', x: 150, y: 150, width: 150, color: 'yellow', type: 'normal' }
   ]);
-  const handleContext = (id, x, y) => { setContextMenu({ visible: true, x, y, noteId: id }); setEditingId(null); };
+  const handleContext = (id, x, y) => {
+    setContextMenu({ visible: true, x, y, noteId: id });
+    setEditingId(null);
+  };
   const handleEditStart = id => setEditingId(id);
   const closeContext = () => setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
+
+  // ContextMenu에 넘길 메뉴 옵션을 노트 타입별로 분기
+  const renderContextMenu = () => {
+    if (!contextMenu.visible) return null;
+    const { noteId, x, y } = contextMenu;
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return null;
+
+    // “프롬프트 생성” 노트(type: 'promptNote')의 메뉴: 5가지 항목 (1,2,3,4,5)
+    if (note.type === 'promptNote') {
+      const promptMenu = [
+        { label: '1', onClick: () => alert('선택: 1') },
+        { label: '2', onClick: () => alert('선택: 2') },
+        { label: '3', onClick: () => alert('선택: 3') },
+        { label: '4', onClick: () => alert('선택: 4') },
+        { label: '5', onClick: () => alert('선택: 5') }
+      ];
+      return (
+        <ContextMenu
+          ref={menuRef}
+          x={x}
+          y={y}
+          menuOptions={promptMenu}
+          onClose={closeContext}
+        />
+      );
+    }
+
+    // 그 외 일반 노트 메뉴
+    const normalMenu = [
+      {
+        label: '합치기',
+        onClick: () => {
+          // 두 번째 ID를 어떻게 넘길지는 드래그/컨텍스트 로직에 따름
+          // 예: handleCombine(noteId, 다른노트ID)
+        }
+      },
+      {
+        label: '확장',
+        onClick: () => handleExpand(noteId)
+      },
+      {
+        label: '편집',
+        onClick: () => setEditingId(noteId)
+      },
+      {
+        label: '삭제',
+        onClick: () => handleDelete(noteId)
+      },
+      {
+        label: '색 선택',
+        onClick: () => handleColorChange(noteId, 'red')
+      }
+    ];
+    return (
+      <ContextMenu
+        ref={menuRef}
+        x={x}
+        y={y}
+        menuOptions={normalMenu}
+        onClose={closeContext}
+      />
+    );
+  };
+
+  // ContextMenu 외부 클릭 시 메뉴 닫기
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        contextMenu.visible &&
+        menuRef.current &&
+        !event.target.closest('.context-menu')
+      ) {
+        closeContext();
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [contextMenu.visible]);
 
   return (
     <div>
@@ -189,19 +285,8 @@ function App() {
         onEditComplete={handleEditComplete}
       />
 
-      {/* Context Menu */}
-      {contextMenu.visible && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onCombine={() => handleCombine(contextMenu.noteId, /* 두 번째 ID 선택 필요 */)}
-          onExpand={() => handleExpand(contextMenu.noteId)}
-          onEdit={() => setEditingId(contextMenu.noteId)}
-          onDelete={() => handleDelete(contextMenu.noteId)}
-          onColorChange={color => handleColorChange(contextMenu.noteId, color)}
-          onClose={closeContext}
-        />
-      )}
+      {/* 동적 ContextMenu 출력 */}
+      {renderContextMenu()}
     </div>
   );
 }

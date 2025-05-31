@@ -12,7 +12,8 @@ function initLogs() {
 }
 
 /**
- * 일반 로그 (combine 등). noteId, action, prompt, response, timestamp를 저장
+ * 일반 로그 (combine 등). 
+ * noteId, action, prompt, response, timestamp를 저장
  */
 export function logConversation(noteId, action, prompt, response) {
   initLogs();
@@ -28,12 +29,13 @@ export function logConversation(noteId, action, prompt, response) {
 }
 
 /**
- * expand 전용 로그: action, response, timestamp만 저장
+ * expand 전용 로그: noteId, action, response, timestamp만 저장
  */
-export function logExpand(response) {
+export function logExpand(noteId, response) {
   initLogs();
   const logs = JSON.parse(localStorage.getItem(LOG_KEY));
   logs.push({
+    noteId,            // 삭제 시 참조하기 위해 반드시 noteId를 남깁니다.
     action: 'expand',
     response,
     timestamp: new Date().toISOString()
