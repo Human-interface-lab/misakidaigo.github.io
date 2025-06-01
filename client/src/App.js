@@ -2,8 +2,18 @@
 import React, { useState } from 'react';
 import Canvas from './components/Canvas';
 import ContextMenuRenderer from './components/ContextMenuRenderer';
-import { systemMessage, getCombinePrompt, getDeepPrompt } from './prompts';
-import { logConversation, logExpand, removeLogsForNote, clearLogs } from './utils/logger';
+import {
+  systemMessage,
+  getCombinePrompt,
+  getDeepPrompt,
+  getExamplesPrompt
+} from './prompts';
+import {
+  logConversation,
+  logExpand,
+  removeLogsForNote,
+  clearLogs
+} from './utils/logger';
 
 function App() {
   const [notes, setNotes] = useState([]);
@@ -16,7 +26,96 @@ function App() {
   });
   const [editingId, setEditingId] = useState(null);
 
-  // —————— 노트 합치기 ——————
+  // ─────────────────────────────────────────────────────────
+  // 1) deepNote에서 “예시 답변 보기” 핸들러 (반드시 App 최상단에 선언)
+  // ─────────────────────────────────────────────────────────
+  const handleGetExamples = async (noteId) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    if (!process.env.REACT_APP_OPENAI_API_KEY) {
+      alert('.env에 REACT_APP_OPENAI_API_KEY를 설정하고 앱을 재시작하세요.');
+      return;
+    }
+
+    // ContextMenu 닫기
+    setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
+
+    try {
+      const promptText = getExamplesPrompt(note.title);
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemMessage },
+            { role: 'user',   content: promptText }
+          ],
+          temperature: 0.7,
+          max_tokens: 150
+        })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const content = data.choices[0].message.content.trim();
+
+      // JSON 배열 파싱
+      let examples = [];
+      const match = content.match(/\[.*?\]/s);
+      if (match) {
+        try {
+          examples = JSON.parse(match[0]);
+        } catch {
+          examples = [];
+        }
+      }
+
+      const count = Math.min(examples.length, 3);
+      const dist = 180;
+      const angles = [-Math.PI / 3, 0, Math.PI / 3];
+      const timestamp = Date.now();
+      const newAnswerNotes = [];
+
+      for (let i = 0; i < count; i++) {
+        const angle = angles[i];
+        const answerText = examples[i];
+        const answerId = `${noteId}_answer${i}_${timestamp}`;
+        const xPos = note.x + Math.cos(angle) * dist;
+        const yPos = note.y + Math.sin(angle) * dist;
+
+        newAnswerNotes.push({
+          id:    answerId,
+          title: answerText,
+          x:     xPos,
+          y:     yPos,
+          width: 180,
+          color: 'lightyellow',
+          type:  'answerNote'
+        });
+      }
+
+      setNotes(prev => [...prev, ...newAnswerNotes]);
+      setConnections(prev => [
+        ...prev,
+        ...newAnswerNotes.map(n => ({ from: noteId, to: n.id }))
+      ]);
+
+      newAnswerNotes.forEach(n => {
+        logConversation(n.id, 'example', note.title, n.title);
+      });
+    } catch (err) {
+      console.error(err);
+      alert(`예시 답변 생성 중 오류: ${err.message}`);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // 2) 노트 합치기 핸들러
+  // ─────────────────────────────────────────────────────────
   const handleCombine = async (fromId, toId) => {
     const noteA = notes.find(n => n.id === fromId);
     const noteB = notes.find(n => n.id === toId);
@@ -49,7 +148,7 @@ function App() {
       const match = content.match(/\[.*?\]/s);
       const related = match ? JSON.parse(match[0]).slice(0, 1) : [];
 
-      // 두 노트 중간에 새 노트 위치
+      // 새 노트 위치 (두 노트 중간)
       const centerX = (noteA.x + noteB.x) / 2;
       const centerY = (noteA.y + noteB.y) / 2;
       const newNoteId = `combined_${Date.now()}`;
@@ -59,7 +158,7 @@ function App() {
       removeLogsForNote(fromId);
       removeLogsForNote(toId);
 
-      // 새 노트 추가 (type: 'normal')
+      // 새 노트 추가 (type: 'deepNote')
       setNotes(prev => [
         ...prev,
         {
@@ -68,15 +167,13 @@ function App() {
           x:     centerX,
           y:     centerY,
           width: 150,
-          color: 'yellow',
-          type:  'normal'
+          color: 'orange',
+          type:  'deepNote'
         }
       ]);
 
-      // 합치기 로그 기록
       logConversation(newNoteId, 'combine', prompt, related[0] || '');
 
-      // 연결선 재매핑
       setConnections(prev =>
         prev.map(c => ({
           from: [fromId, toId].includes(c.from) ? newNoteId : c.from,
@@ -91,7 +188,9 @@ function App() {
     }
   };
 
-  // —————— 기본 확장: “프롬프트 생성” + “복사 노트” ——————
+  // ─────────────────────────────────────────────────────────
+  // 3) 기본 확장: “Design Prompt” + “복사 노트”
+  // ─────────────────────────────────────────────────────────
   const handleExpand = (id) => {
     const note = notes.find(n => n.id === id);
     if (!note) return;
@@ -104,7 +203,7 @@ function App() {
       const isPromptNote = idx === 0;
       return {
         id:    `${id}_initExpand${idx}_${timestamp}`,
-        title: isPromptNote ? '프롬프트 생성' : note.title,
+        title: isPromptNote ? 'Design Prompt' : note.title,
         x:     note.x + Math.cos(angle) * dist,
         y:     note.y + Math.sin(angle) * dist,
         width: 150,
@@ -121,15 +220,17 @@ function App() {
 
     newNotes.forEach((n, idx) => {
       const responseText = idx === 0
-        ? `프롬프트 생성: ${n.id}`
-        : `아이디어 확장 복사: ${n.title}`;
+        ? `Design Prompt: ${n.id}`
+        : `Expand Idea: ${n.title}`;
       logExpand(n.id, responseText);
     });
 
     setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
   };
 
-  // —————— 심화 확장: 두 개의 구체적 질문 생성 ——————
+  // ─────────────────────────────────────────────────────────
+  // 4) 심화 확장: 두 개의 구체적 질문 생성
+  // ─────────────────────────────────────────────────────────
   const handleDeepExpand = async (id) => {
     const note = notes.find(n => n.id === id);
     if (!note) return;
@@ -192,13 +293,14 @@ function App() {
     }
   };
 
-  // —————— “Persona, Tone, Audience, Example, Format” 노트 생성 ——————
+  // ─────────────────────────────────────────────────────────
+  // 5) “Persona, Tone, Audience, Example, Format” 노트 생성
+  // ─────────────────────────────────────────────────────────
   const handleCreateDetail = (originId, detailType) => {
     const origin = notes.find(n => n.id === originId);
     if (!origin) return;
 
     const dist = 200;
-    // “프롬프트 생성” 노트 기준 오른쪽 위(각도: -π/3)로 위치
     const angle = -Math.PI / 3;
     const newX = origin.x + Math.cos(angle) * dist;
     const newY = origin.y + Math.sin(angle) * dist;
@@ -208,7 +310,7 @@ function App() {
       ...prev,
       {
         id:    newNoteId,
-        title: detailType,      // “Persona” or “Tone” 등
+        title: detailType,
         x:     newX,
         y:     newY,
         width: 180,
@@ -219,7 +321,6 @@ function App() {
 
     logConversation(newNoteId, 'detailExpand', `Detail: ${detailType}`, detailType);
 
-    // 연결선 추가
     setConnections(prev => [
       ...prev,
       { from: originId, to: newNoteId }
@@ -227,7 +328,9 @@ function App() {
     setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
   };
 
-  // 기타 핸들러들
+  // ─────────────────────────────────────────────────────────
+  // 6) 기타 핸들러
+  // ─────────────────────────────────────────────────────────
   const handleMove        = (id, x, y)       => setNotes(prev => prev.map(n => n.id === id ? { ...n, x, y } : n));
   const handleResize      = (id, x, y, size) => setNotes(prev => prev.map(n => n.id === id ? { ...n, x, y, width: size } : n));
   const handleColorChange = (id, color)      => setNotes(prev => prev.map(n => n.id === id ? { ...n, color } : n));
@@ -255,7 +358,9 @@ function App() {
   const handleEditStart = id => setEditingId(id);
   const closeContext = () => setContextMenu({ visible: false, x: 0, y: 0, noteId: null });
 
-  // —————— 초기화 버튼: 모든 노트와 로그 삭제 ——————
+  // ─────────────────────────────────────────────────────────
+  // 7) 초기화 버튼: 모든 노트와 로그 삭제
+  // ─────────────────────────────────────────────────────────
   const handleResetAll = () => {
     setNotes([]);
     setConnections([]);
@@ -281,7 +386,10 @@ function App() {
       </button>
 
       {/* 새 노트 추가 */}
-      <button onClick={handleAddNote} style={{ margin: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}>
+      <button
+        onClick={handleAddNote}
+        style={{ margin: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
+      >
         New Clay
       </button>
 
@@ -306,6 +414,7 @@ function App() {
         handlers={{
           handleExpand,
           handleDeepExpand,
+          handleGetExamples,
           handleDelete,
           handleColorChange,
           handleCreateDetail,
