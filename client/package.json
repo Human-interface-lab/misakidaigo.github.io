@@ -1,8 +1,7 @@
 {
   "name": "idea_clay_web",
   "version": "0.1.0",
-  "private": true,
-  "type": "module", 
+  "private": true, 
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
