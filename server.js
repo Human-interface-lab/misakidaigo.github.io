@@ -10,13 +10,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // OPENAI_API_KEY가 없으면 서버 기동 중단
-if (!process.env.OPENAI_API_KEY) {
+if (!process.env.REACT_APP_OPENAI_API_KEY) {
   console.error('ERROR: OPENAI_API_KEY 환경 변수가 필요합니다.');
   process.exit(1);
 }
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.REACT_APP_OPENAI_API_KEY
 });
 
 app.use(express.json());
