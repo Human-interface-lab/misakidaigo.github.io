@@ -41,7 +41,7 @@ export function getExamplesPrompt(question) {
   return `
     아래 질문에 대해 3개의 예시 답변을 JSON 배열 형태로 출력해 주세요.
     질문: "${question}"
-    - 각 답변은 최대 세 문장 이내로 간략히 작성해 주세요.
+    - 각 답변은 1줄 이내로 간략히 작성해 주세요.
     - 순수 JSON 배열(예: ["답변1", "답변2", "답변3"]) 형태로만 응답해 주세요.
   `.trim();
 }
