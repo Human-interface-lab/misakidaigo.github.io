@@ -73,7 +73,13 @@ function App() {
           examples = [];
         }
       }
-
+      if (examples.length === 1 && /[\r\n]/.test(examples[0])) {
+       examples = examples[0]
+         .split(/[\r\n]+/)      // 줄바꿈으로 분리
+         .map(s => s.trim())    // 앞뒤 공백 제거
+         .filter(s => s)        // 빈 문자열 제거
+         .slice(0, 3);          // 최대 3개
+     }
       const count = Math.min(examples.length, 3);
       const dist = 180;
       const angles = [-Math.PI / 3, 0, Math.PI / 3];
