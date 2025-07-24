@@ -1,0 +1,13 @@
+# render.yaml
+services:
+  - type: static
+    name: idea-clay-app
+    env: static
+    plan: free
+    repo: https://github.com/Human-interface-lab/misakidaigo.github.io.git
+    branch: feature/idea-innovation                               # ← 배포할 브랜치
+    buildCommand: "npm install && npm run build"
+    publishDirectory: "build"
+    envVars:
+      - key: REACT_APP_OPENAI_API_KEY
+        sync: false
