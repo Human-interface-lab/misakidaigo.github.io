@@ -1,0 +1,26 @@
+.template-clay {
+  width: 150px;
+  padding: 10px;
+  background-color: #e0f2fe;
+  border: 2px dashed #0ea5e9;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  cursor: grab;
+}
+
+.template-clay.idea {
+  background-color: #fef08a;
+  border-color: #eab308;
+}
+
+.template-clay.element {
+  background-color: #bae6fd;
+  border-color: #0284c7;
+}
+
+
+.template-clay.create {
+  background-color: #fd7575;
+  border-color: #ff9837;
+}

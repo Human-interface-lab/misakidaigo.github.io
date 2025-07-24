@@ -1,0 +1,26 @@
+.element-clay {
+  width: 200px;
+  padding: 12px;
+  background-color: #e0f2fe; /* 연한 파랑 */
+  border: 1px solid #90cdf4;
+  border-radius: 8px;
+  margin: 10px;
+  font-family: sans-serif;
+  position: relative;
+  transition: box-shadow 0.3s;
+}
+
+.element-clay:hover {
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.element-title {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.element-specifics {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #333;
+}

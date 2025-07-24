@@ -1,0 +1,14 @@
+.workspace {
+  position: relative;
+}
+
+.palette-area {
+  position: fixed;
+  /* 스크롤에도 고정됨 */
+  top: 1rem;
+  left: 1rem;
+  z-index: 100;
+  background: #f0f0f0;
+  padding: 1rem;
+  border-radius: 8px;
+}
