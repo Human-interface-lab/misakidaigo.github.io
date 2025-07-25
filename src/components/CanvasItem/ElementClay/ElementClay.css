@@ -1,13 +1,24 @@
 .element-clay {
   width: 200px;
   padding: 12px;
-  background-color: #e0f2fe; /* 연한 파랑 */
+  background-color: #4cb3f8; /* 연한 파랑 */
   border: 1px solid #90cdf4;
   border-radius: 8px;
   margin: 10px;
   font-family: sans-serif;
   position: relative;
   transition: box-shadow 0.3s;
+}
+
+.element-clay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("../../textures/clay\ texture.jpg") repeat;
+  opacity: 0.5;           /* 노이즈 강도 조절 */
+   mix-blend-mode: multiply;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .element-clay:hover {

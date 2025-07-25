@@ -16,7 +16,7 @@ Do not use any of the following words as the title: ${existingTitles.join(', ')}
 Respond in this exact format:
 ${
     type === 'IDEA_TEMPLATE'
-      ? 'Title: [2–3 word idea title]\nDescription: [1–2 sentence explanation of how it relates to the topic]'
+      ? 'Title: [2–3 word idea title]\nDescription: [1 sentence explanation of how it relates to the topic]'
       : 'Title: [2–3 word conceptual element only]'
   }`;
 }
@@ -33,7 +33,7 @@ Combine the following two concepts into one new creative idea that is realistica
 - ${targetTitle}
 Respond in the following format:
 Title: [2–3 word idea title]
-Description: [1–2 sentence explanation that logically combines both concepts and explains how it relates to the topic]`;
+Description: [1 sentence explanation that logically combines both concepts and explains how it relates to the topic]`;
 }
 
 export function getDecomposePrompt(topic, ideaTitle,ideaDescription) {

@@ -1,3 +1,4 @@
+// src/components/Workspace/Workspace.js
 import React, { useState } from 'react';
 import PaletteArea from './PaletteArea';
 import CanvasArea from './CanvasArea';
@@ -19,14 +20,17 @@ function Workspace() {
 
   return (
     <div className="workspace">
-      <PaletteArea onDelete={handleDelete} />
+      {/* PaletteArea는 한 번만 렌더링 */}
       <PaletteArea topic={topic} setTopic={setTopic} />
+
+      {/* CanvasArea에만 삭제 핸들러를 넘겨줍니다 */}
       <CanvasArea
         topic={topic}
         items={items}
         setItems={setItems}
         connections={connections}
         setConnections={setConnections}
+        onDelete={handleDelete}
       />
     </div>
   );

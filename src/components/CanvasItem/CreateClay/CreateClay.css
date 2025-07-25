@@ -1,26 +1,26 @@
 .create-clay {
+  background-color: #ffb413;        /* 입력용도 다른 색상 */
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.create-clay::before {
+  content: "";
   position: absolute;
-  background-color: #fdcc46;
-  border: 2px solid #b7ff44;
-  border-radius: 10px;
-  padding: 8px;
-  min-width: 160px;
-  min-height: 80px;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
-  resize: none;
-  z-index: 10;
+  inset: 0;
+  background: url("../../textures/clay\ texture.jpg") repeat;
+  opacity: 0.5;           /* 노이즈 강도 조절 */
+   mix-blend-mode: multiply;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .create-clay-input {
   width: 100%;
-  height: 100%;
   border: none;
-  outline: none;
   background: transparent;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #333;
   resize: none;
-  overflow: hidden;
-  font-family: 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  outline: none;
 }

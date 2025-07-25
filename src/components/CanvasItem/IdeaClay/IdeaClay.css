@@ -1,7 +1,7 @@
 .idea-clay {
   width: 200px;
   padding: 12px;
-  background-color: #fef08a; /* 연한 노랑 */
+  background-color: #fbff00; /* 연한 노랑 */
   border: 1px solid #facc15;
   border-radius: 8px;
   margin: 10px;
@@ -17,6 +17,17 @@
 .idea-title {
   font-weight: bold;
   font-size: 1rem;
+}
+
+.idea-clay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("../../textures/clay\ texture.jpg") repeat;
+  opacity: 0.5;           /* 노이즈 강도 조절 */
+   mix-blend-mode: multiply;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .idea-specifics {
