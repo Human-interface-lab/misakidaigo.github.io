@@ -1,9 +1,7 @@
 .trash-zone {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  width: 160px;
-  height: 60px;
+  position: relative;      /* fixed → relative 로 바꿔서 팔레트 내부에 붙이기 */
+  width: 150px;
+  padding: 10px;
   background-color: #fee2e2;
   border: 2px dashed #f87171;
   color: #b91c1c;
@@ -11,6 +9,5 @@
   text-align: center;
   line-height: 60px;
   border-radius: 8px;
-  z-index: 9999; /* 스크롤 위로 떠 있도록 */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }

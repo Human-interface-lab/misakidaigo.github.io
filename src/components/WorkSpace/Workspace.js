@@ -2,35 +2,84 @@
 import React, { useState } from 'react';
 import PaletteArea from './PaletteArea';
 import CanvasArea from './CanvasArea';
+import LogPanel from './LogPanel';
 import './Workspace.css';
 
-function Workspace() {
-  const [items, setItems] = useState([]);
-  const [connections, setConnections] = useState([]);
-  const [topic, setTopic] = useState('');
+const directions = ['Product', 'Process', 'Market', 'Resource', 'Organization'];
 
-  const handleDelete = (idToDelete) => {
-    setItems((prev) => prev.filter((item) => item.id !== idToDelete));
-    setConnections((prev) =>
-      prev.filter(
-        (conn) => conn.from !== idToDelete && conn.to !== idToDelete
-      )
+let logIdCounter = 0;
+
+function Workspace({ direction }) {
+  // direction별 상태를 분리해서 관리
+  const [canvasStates, setCanvasStates] = useState(
+    directions.reduce((acc, dir) => {
+      acc[dir] = {
+        items: [],
+        connections: [],
+        logs: []
+      };
+      return acc;
+    }, {})
+  );
+  const [topic, setTopic] = useState('');
+  const activeState = canvasStates[direction];
+
+  const updateCanvasState = (field, updater) => {
+    setCanvasStates(prev => ({
+      ...prev,
+      [direction]: {
+        ...prev[direction],
+        [field]: updater(prev[direction][field])
+      }
+    }));
+  };
+
+  const addLog = (message, relatedIds = []) => {
+    const entry = { id: logIdCounter++, message, relatedIds };
+    updateCanvasState('logs', logs => [...logs, entry]);
+  };
+
+  const handleDelete = idToDelete => {
+    updateCanvasState('items', items => items.filter(item => item.id !== idToDelete));
+    updateCanvasState('connections', conns =>
+      conns.filter(conn => conn.from !== idToDelete && conn.to !== idToDelete)
     );
+    updateCanvasState('logs', logs => logs.filter(log => !log.relatedIds.includes(idToDelete)));
+  };
+
+  const handleClearAll = () => {
+    setCanvasStates(prev => ({
+      ...prev,
+      [direction]: { items: [], connections: [], logs: [] }
+    }));
   };
 
   return (
     <div className="workspace">
-      {/* PaletteArea는 한 번만 렌더링 */}
-      <PaletteArea topic={topic} setTopic={setTopic} />
+      <PaletteArea
+        topic={topic}
+        setTopic={setTopic}
+        onDelete={handleDelete}
+        onClearAll={handleClearAll}
+      />
 
-      {/* CanvasArea에만 삭제 핸들러를 넘겨줍니다 */}
       <CanvasArea
         topic={topic}
-        items={items}
-        setItems={setItems}
-        connections={connections}
-        setConnections={setConnections}
+        items={activeState.items}
+        setItems={fn => updateCanvasState('items', fn)}
+        connections={activeState.connections}
+        setConnections={fn => updateCanvasState('connections', fn)}
         onDelete={handleDelete}
+        addLog={addLog}
+        direction={direction}
+      />
+
+      <LogPanel
+        logs={activeState.logs}
+        onClearLog={id =>
+          updateCanvasState('logs', logs => logs.filter(log => log.id !== id))
+        }
+        onClearAll={handleClearAll}
       />
     </div>
   );

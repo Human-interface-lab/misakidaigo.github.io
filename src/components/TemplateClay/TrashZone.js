@@ -19,7 +19,7 @@ function TrashZone({ onDelete }) {
       ref={dropRef}
       className={`trash-zone ${isOver ? 'hover' : ''}`}
     >
-      🗑️ Trash
+      🗑️Trash
     </div>
   );
 }

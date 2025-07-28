@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import IdeaTemplateClay from '../TemplateClay/IdeaTemplateClay';
 import ElementTemplateClay from '../TemplateClay/ElementTemplateClay';
 import CreateTemplateClay from '../TemplateClay/CreateTemplateClay';
+import TrashZone from '../TemplateClay/TrashZone';
 import { useDrag } from 'react-dnd';
 import './PaletteArea.css';
 
@@ -32,7 +33,7 @@ function EditableClay({ item, onChange }) {
   );
 }
 
-function PaletteArea({ topic, setTopic }) {
+function PaletteArea({ topic, setTopic, onDelete, onClearAll }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const textareaRef = useRef();
 
@@ -67,7 +68,20 @@ function PaletteArea({ topic, setTopic }) {
             <IdeaTemplateClay />
             <ElementTemplateClay />
             <CreateTemplateClay />
+
           </div>
+
+          <div>
+            <TrashZone onDelete={onDelete} />
+            <button
+              type="button"
+              className="clear-all-button"
+              onClick={onClearAll}
+            >
+              Clear Canvas
+            </button>
+          </div>
+
         </>
       )}
     </div>

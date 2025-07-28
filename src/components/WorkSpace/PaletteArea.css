@@ -1,5 +1,6 @@
 .palette-area {
-  position: fixed;
+  position: relative;
+  margin-top: 50px;
   top: 1rem;
   left: 1rem;
   z-index: 100;
@@ -56,4 +57,18 @@
 
 .clay-block:hover {
   background-color: #e2f5ff;
+}
+
+.palette-area .palette-clay-list > * {
+  margin-bottom: 5px;
+}
+
+/* Ensure last item has no extra margin */
+.palette-area .palette-clay-list > *:last-child {
+  margin-bottom: 0;
+}
+
+/* TrashZone spacing from clay buttons */
+.palette-area .trash-zone {
+  margin-top: 10px;
 }

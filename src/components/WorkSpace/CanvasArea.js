@@ -3,19 +3,16 @@ import { useDrop } from 'react-dnd';
 import './CanvasArea.css';
 import CanvasItem from '../CanvasItem/CanvasItem';
 import ConnectionLines from '../CanvasItem/ConnectionLines';
-import TrashZone from './TrashZone';
 import { getIdeaPrompt, getCombinePrompt } from '../../prompts/promptUtils';
 import { generateDecomposeElements } from '../../prompts/generateDecomposeElemnets';
 
 let nextId = 1000;
 
-function CanvasArea({ topic }) {
+function CanvasArea({ topic, items, setItems, connections, setConnections, onDelete, addLog, direction }) {
   const canvasRef = useRef(null);
-  const [items, setItems] = useState([]);
-  const [connections, setConnections] = useState([]);
 
   async function generateIdeaFromTopic(topic, type, existingTitles) {
-    const prompt = getIdeaPrompt(topic, type, existingTitles);
+    const prompt = getIdeaPrompt(topic, type, existingTitles,direction);
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -46,7 +43,7 @@ function CanvasArea({ topic }) {
   }
 
   async function generateCombinedIdea(topic, sourceTitle, targetTitle) {
-    const prompt = getCombinePrompt(topic, sourceTitle, targetTitle);
+    const prompt = getCombinePrompt(topic, sourceTitle, targetTitle, direction);
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -80,10 +77,13 @@ function CanvasArea({ topic }) {
       let title = '';
       let description = '';
       if (item.type === 'IDEA_TEMPLATE' || item.type === 'ELEMENT_TEMPLATE') {
-        const res = await generateIdeaFromTopic(topic, item.type, existingTitles);
+        const res = await generateIdeaFromTopic(topic, item.type, existingTitles, direction);
         if (existingTitles.includes(res.title)) return;
         title = res.title;
         description = res.description;
+        console.log(
+          `[New ${item.type === 'IDEA_TEMPLATE' ? 'Idea' : 'Element'}] ${title}`
+        );
       } else if (item.type === 'CREATE_TEMPLATE') {
         title = '';
       } else {
@@ -100,17 +100,17 @@ function CanvasArea({ topic }) {
         y,
       };
       setItems(prev => [...prev, newItem]);
+      addLog(
+        `[New ${newItem.type === 'idea' ? 'Idea' : 'Element'}] ${newItem.title}`,
+        [newItem.id]
+      );
     },
     collect: monitor => ({ isOver: monitor.isOver() }),
   });
 
   const handleMove = (id, newX, newY) =>
-    setItems(prev => prev.map(i => i.id === id ? { ...i, x: newX, y: newY } : i));
+  setItems(prev => prev.map(i => i.id === id ? { ...i, x: newX - 60, y: newY - 40 } : i));
 
-  const handleDelete = id => {
-    setItems(prev => prev.filter(i => i.id !== id));
-    setConnections(prev => prev.filter(c => c.from !== id && c.to !== id));
-  };
 
   const handleCombine = (src, tgt) => {
     const source = items.find(i => i.id === src.id);
@@ -119,11 +119,32 @@ function CanvasArea({ topic }) {
     const x = (source.x + target.x) / 2;
     const y = (source.y + target.y) / 2;
 
-    generateCombinedIdea(topic, source.title, target.title).then(res => {
-      const newIdea = { id: nextId++, type: 'idea', title: res.title, description: res.description, x, y };
-      setItems(prev => [...prev, newIdea]);
-      setConnections(prev => [...prev, { from: source.id, to: newIdea.id }, { from: target.id, to: newIdea.id }]);
-    });
+    generateCombinedIdea(topic, source.title, target.title)
+      .then(res => {
+        const newIdea = {
+          id: nextId++,
+          type: 'idea',
+          title: res.title,
+          description: res.description,
+          x,
+          y
+        };
+        setItems(prev => [...prev, newIdea]);
+        setConnections(prev => [
+          ...prev,
+          { from: source.id, to: newIdea.id },
+          { from: target.id, to: newIdea.id }
+        ]);
+        // ← 여기서 newIdea를 참조해서 로그를 찍습니다
+
+        console.log(
+          `[Combined] ${source.title} + ${target.title} → ${newIdea.title}`
+        );
+        addLog(
+          `[Combined] ${source.title} + ${target.title} → ${newIdea.title}`,
+          [source.id, target.id, newIdea.id]
+        );
+      })
   };
 
   const handleDecompose = async (item) => {
@@ -135,21 +156,23 @@ function CanvasArea({ topic }) {
     if (!elems.length) return;
 
     // 반경과 각도 설정
-    const radius = 120;
-    const angleStep = (2 * Math.PI) / elems.length;
+    const baseX = source.x;
+    const baseY = source.y + 150;
+
+    const spacing = 150;
+    const x_positions = [-spacing, 0, spacing];
+    const y_positions = [0, spacing, 0];
+
 
     // 새 요소 아이템 생성
-    const newItems = elems.map((title, idx) => {
-      const angle = idx * angleStep;
-      return {
-        id: nextId++,
-        type: 'element',
-        title,
-        description: '',
-        x: source.x + Math.cos(angle) * radius,
-        y: source.y + Math.sin(angle) * radius,
-      };
-    });
+    const newItems = elems.map((title, idx) => ({
+      id: nextId++,
+      type: 'element',
+      title,
+      description: '',
+      x: baseX + x_positions[idx],
+      y: baseY + y_positions[idx],
+    }));
 
     // items 상태 업데이트
     setItems(prev => [...prev, ...newItems]);
@@ -160,6 +183,9 @@ function CanvasArea({ topic }) {
       to: el.id,
     }));
     setConnections(prev => [...prev, ...newConns]);
+    console.log(
+      `[Decomposed] ${source.title} → Elements: ${elems.join(', ')}`
+    );
   };
 
   return (
@@ -183,7 +209,6 @@ function CanvasArea({ topic }) {
           }}
         />
       ))}
-      <TrashZone onDelete={handleDelete} />
     </div>
   );
 }
