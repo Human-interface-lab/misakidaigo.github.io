@@ -3,39 +3,41 @@
 /**
  * Returns a prompt for generating a new idea or element based on a topic.
  */
-const directionGoals = {
-  Product: 'Generate a product or service idea that solves a real-world problem.',
-  Process: 'Propose an innovative operational method or workflow.',
-  Market: 'Suggest a solution that serves a new customer segment or market.',
-  Resource: 'Create a concept that reuses or optimizes existing resources.',
-  Organization: 'Design a novel structure or system for collaboration or business operation.'
-};
 
 
 export function getIdeaPrompt(topic, type, existingTitles, direction, coreProductIdea) {
   const safeDirection = direction || 'Product';
-  const base = coreProductIdea?.title || topic;
 
   const directionDetails = {
     Product: `Propose a new and creative idea related to "${topic}". 
 Avoid using existing idea titles: ${existingTitles.join(', ')}.`,
 
-    Process: `Given the product idea "${base}", explain a production or workflow process that supports it efficiently. 
-You may include methods such as automation, lean manufacturing, or agile workflows.`,
+    Process: `List 5–7 production or workflow processes that could feasibly support the product idea "${coreProductIdea?.title}" in distinct ways. 
+Include a wide range of strategies, from traditional methods to emerging technologies and speculative approaches. 
+Be specific and creative — consider combining software and hardware processes, using automation, AI, edge computing, supply chain decentralization, crowdsourced production, or adaptive manufacturing systems. 
+Ensure that no two suggestions are alike and that they apply to different industry settings or scales to reduce duplication.`,
 
-    Market: `Given the product idea "${base}", describe potential market-entry strategies, target customers, or promotional methods. 
-Mention known approaches or similar real-world examples.`,
+    Market: `Describe 5 unique market-entry or customer engagement strategies for the product idea "${coreProductIdea?.title}".
+Avoid repeating or paraphrasing any of these existing concepts: ${existingTitles.join('; ')}.
+Each strategy should involve different channels, segmentation approaches, pricing models, or promotional methods.
+Encourage the use of cross-industry examples, niche targeting, or hybrid digital-physical campaigns.`,
 
-    Resource: `Considering the product idea "${base}", describe how necessary resources (materials, data, energy) could be sourced or optimized. 
-Include real-world resource reuse strategies if applicable.`,
+    Resource: `Explain 5 distinct strategies for sourcing, reusing, or optimizing resources for the product idea "${coreProductIdea?.title}".
+Avoid duplicating or slightly rewording previous examples: ${existingTitles.join('; ')}.
+Include various approaches like circular economy models, resource-sharing platforms, green logistics, or novel material usage.`,
 
-    Organization: `For the product idea "${base}", propose organizational models that support its development and operation. 
-Include examples such as cross-functional teams, remote structures, or startup incubator models.`
+    Organization: `Propose 5 different organizational structures or collaboration models to support the implementation of "${coreProductIdea?.title}".
+Avoid duplicating formats from these existing suggestions: ${existingTitles.join('; ')}.
+Include a wide range of models such as cooperatives, DAOs, incubator ecosystems, project-based teaming, or AI-assisted coordination.`
   };
 
   return `You are a domain expert in ${safeDirection.toLowerCase()} strategy and systems.
 
-${coreProductIdea ? `Product Idea: "${coreProductIdea.title}"\nDescription: ${coreProductIdea.description}` : `Topic: "${topic}"`}
+${safeDirection === 'Product' 
+  ? `Topic: "${topic}"` 
+  : `Product Idea: "${coreProductIdea?.title}"
+Description: ${coreProductIdea?.description}`}
+
 Direction: ${safeDirection}
 
 ${directionDetails[safeDirection]}
@@ -61,7 +63,10 @@ export function getCombinePrompt(topic, sourceTitle, targetTitle, direction, cor
 
   return `You are an expert in ideation and strategic innovation.
 
-${coreProductIdea ? `Product Idea: "${coreProductIdea.title}"\nDescription: ${coreProductIdea.description}` : `Topic: "${topic}"`}
+${coreProductIdea 
+  ? `Product Idea: "${coreProductIdea.title}"
+Description: ${coreProductIdea.description}` 
+  : `Topic: "${topic}"`}
 Direction: ${direction}
 
 ${task[direction]}
@@ -74,7 +79,7 @@ Title: [2–3 word idea title]
 Description: [1 sentence explanation that logically combines both concepts and fits the "${direction}" direction]`;
 }
 
-export function getDecomposePrompt(topic, ideaTitle,ideaDescription) {
+export function getDecomposePrompt(topic, ideaTitle, ideaDescription) {
   return `You are a creative system design expert.
 
 Topic: "${topic}" (This is a real-world topic, not fictional)

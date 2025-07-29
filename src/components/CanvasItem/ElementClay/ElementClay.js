@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import './ElementClay.css';
 
-function ElementClay({ title, description, style }) {
+function ElementClay({ title, style }) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
