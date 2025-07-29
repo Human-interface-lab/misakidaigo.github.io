@@ -12,7 +12,12 @@ export default function CanvasItem({ item, onMove, onCombine, onEdit, onDecompos
   // 전체 블록을 드래그하여 이동
   const [{ isDragging }, dragRef] = useDrag({
     type: 'CANVAS_ITEM',
-    item: () => ({ id: item.id, type: item.type }),
+    item: () => ({
+      id: item.id,
+      type: item.type,
+      title: item.title,             // ✅ 추가
+      description: item.description  // ✅ 추가
+    }),
     end: (dragged, monitor) => {
       const offset = monitor.getClientOffset();
       if (!offset) return;

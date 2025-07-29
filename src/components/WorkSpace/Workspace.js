@@ -2,11 +2,10 @@
 import React, { useState } from 'react';
 import PaletteArea from './PaletteArea';
 import CanvasArea from './CanvasArea';
-import LogPanel from './LogPanel';
+import ConfirmedIdeaZone from './ConfirmedIdeaZone';
 import './Workspace.css';
 
 const directions = ['Product', 'Process', 'Market', 'Resource', 'Organization'];
-
 let logIdCounter = 0;
 
 function Workspace({ direction }) {
@@ -23,6 +22,8 @@ function Workspace({ direction }) {
   );
   const [topic, setTopic] = useState('');
   const activeState = canvasStates[direction];
+
+  const [coreProductIdea, setCoreProductIdea] = useState(null);
 
   const updateCanvasState = (field, updater) => {
     setCanvasStates(prev => ({
@@ -74,13 +75,12 @@ function Workspace({ direction }) {
         direction={direction}
       />
 
-      <LogPanel
-        logs={activeState.logs}
-        onClearLog={id =>
-          updateCanvasState('logs', logs => logs.filter(log => log.id !== id))
-        }
-        onClearAll={handleClearAll}
+      <ConfirmedIdeaZone
+        coreProductIdea={coreProductIdea}
+        setCoreProductIdea={setCoreProductIdea}
+        direction={direction}
       />
+
     </div>
   );
 }
