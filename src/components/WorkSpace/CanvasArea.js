@@ -1,18 +1,29 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useDrop } from 'react-dnd';
 import './CanvasArea.css';
 import CanvasItem from '../CanvasItem/CanvasItem';
 import ConnectionLines from '../CanvasItem/ConnectionLines';
 import { getIdeaPrompt, getCombinePrompt } from '../../prompts/promptUtils';
 import { generateDecomposeElements } from '../../prompts/generateDecomposeElemnets';
+import { fetchReferenceWords } from "../../evaluation/getReferenceWords";
+import { generateNgrams } from "../../evaluation/generateNgrams";
+import { evaluateFinalIdeas } from "../../evaluation/evaluateFinalIdeas";
 
 let nextId = 1000;
 
 function CanvasArea({ topic, items, setItems, connections, setConnections, onDelete, addLog, direction }) {
   const canvasRef = useRef(null);
 
-  async function generateIdeaFromTopic(topic, type, existingTitles) {
-    const prompt = getIdeaPrompt(topic, type, existingTitles, direction);
+  // 중복/유사 title 판단 함수 (간단 버전: 소문자 포함 여부, 더 고도화 가능)
+  const isDuplicateOrSimilar = (title) =>
+    items.some(existing =>
+      title.toLowerCase().includes(existing.title.toLowerCase()) ||
+      existing.title.toLowerCase().includes(title.toLowerCase())
+    );
+
+  // 아이디어 생성 함수: 여러 답변 받아 중복/유사 필터링
+  async function generateIdeaFromTopic(topic, type, existingTitles, coreProductIdea) {
+    const prompt = getIdeaPrompt(topic, type, existingTitles, direction, coreProductIdea);
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -22,24 +33,30 @@ function CanvasArea({ topic, items, setItems, connections, setConnections, onDel
       body: JSON.stringify({
         model: 'gpt-4.1-mini',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.8,
+        temperature: 1.2,      // 다양성 강조
+        n: 5                   // 여러 답변 요청
       }),
     });
     const data = await res.json();
-    const text = data.choices?.[0]?.message?.content?.trim() || '';
+    const results = (data.choices || []).map(choice => choice.message.content.trim());
 
-    let title = 'Untitled';
-    let description = '';
-    if (type === 'IDEA_TEMPLATE') {
-      const mT = text.match(/Title[:：]?\s*(.+)/i);
-      const mD = text.match(/Description[:：]?\s*(.+)/i);
-      if (mT) title = mT[1].trim();
-      if (mD) description = mD[1].trim();
-    } else {
-      const mT = text.match(/Title[:：]?\s*(.+)/i);
-      if (mT) title = mT[1].trim();
+    // 여러 답변 중 중복/유사하지 않은 첫 아이디어만 채택
+    let filtered = [];
+    for (let text of results) {
+      let mT = text.match(/Title[:：]?\s*(.+)/i);
+      let mD = text.match(/Description[:：]?\s*(.+)/i);
+      let title = mT ? mT[1].trim() : 'Untitled';
+      let description = mD ? mD[1].trim() : '';
+      if (!isDuplicateOrSimilar(title)) {
+        filtered.push({ title, description });
+      }
     }
-    return { title, description };
+    // 아무것도 남지 않으면 첫 번째 답변 사용 (fail-safe)
+    if (filtered.length) return filtered[0];
+    // fallback: 첫 번째 답변 강제 사용
+    let fallbackT = (results[0].match(/Title[:：]?\s*(.+)/i) || [])[1]?.trim() || 'Untitled';
+    let fallbackD = (results[0].match(/Description[:：]?\s*(.+)/i) || [])[1]?.trim() || '';
+    return { title: fallbackT, description: fallbackD };
   }
 
   async function generateCombinedIdea(topic, sourceTitle, targetTitle) {
@@ -53,7 +70,7 @@ function CanvasArea({ topic, items, setItems, connections, setConnections, onDel
       body: JSON.stringify({
         model: 'gpt-4.1-mini',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.85,
+        temperature: 1.1,
       }),
     });
     const data = await res.json();
@@ -78,13 +95,12 @@ function CanvasArea({ topic, items, setItems, connections, setConnections, onDel
       let description = '';
       if (item.type === 'IDEA_TEMPLATE' || item.type === 'ELEMENT_TEMPLATE') {
         let res = null;
-        const maxRetries = 4;
+        const maxRetries = 2;
         let attempt = 0;
 
         while (attempt < maxRetries) {
           res = await generateIdeaFromTopic(topic, item.type, existingTitles, direction);
           if (!existingTitles.includes(res.title)) break;
-          console.warn(`[중복 아이디어 무시됨] "${res.title}" (재시도 ${attempt + 1})`);
           attempt++;
         }
 
@@ -118,7 +134,6 @@ function CanvasArea({ topic, items, setItems, connections, setConnections, onDel
   const handleMove = (id, newX, newY) =>
     setItems(prev => prev.map(i => i.id === id ? { ...i, x: newX - 60, y: newY - 40 } : i));
 
-
   const handleCombine = (src, tgt) => {
     const source = items.find(i => i.id === src.id);
     const target = items.find(i => i.id === tgt.id);
@@ -142,8 +157,6 @@ function CanvasArea({ topic, items, setItems, connections, setConnections, onDel
           { from: source.id, to: newIdea.id },
           { from: target.id, to: newIdea.id }
         ]);
-        // ← 여기서 newIdea를 참조해서 로그를 찍습니다
-
         console.log(
           `[Combined] ${source.title} + ${target.title} → ${newIdea.title}`
         );
@@ -158,20 +171,15 @@ function CanvasArea({ topic, items, setItems, connections, setConnections, onDel
     const source = items.find(i => i.id === item.id);
     if (!source) return;
 
-    // GPT로부터 3개 요소 생성
     const elems = await generateDecomposeElements(topic, source.title);
     if (!elems.length) return;
 
-    // 반경과 각도 설정
     const baseX = source.x;
     const baseY = source.y + 150;
-
     const spacing = 150;
     const x_positions = [-spacing, 0, spacing];
     const y_positions = [0, spacing, 0];
 
-
-    // 새 요소 아이템 생성
     const newItems = elems.map((title, idx) => ({
       id: nextId++,
       type: 'element',
@@ -181,10 +189,7 @@ function CanvasArea({ topic, items, setItems, connections, setConnections, onDel
       y: baseY + y_positions[idx],
     }));
 
-    // items 상태 업데이트
     setItems(prev => [...prev, ...newItems]);
-
-    // 연결선 상태 업데이트
     const newConns = newItems.map(el => ({
       from: source.id,
       to: el.id,

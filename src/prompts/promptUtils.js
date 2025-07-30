@@ -2,39 +2,51 @@
 
 /**
  * Returns a prompt for generating a new idea or element based on a topic.
+ * 기존 아이디어와 의미적으로 중복/유사/변형된 아이디어를 명확히 제외하도록 지시.
  */
-
-
 export function getIdeaPrompt(topic, type, existingTitles, direction, coreProductIdea) {
   const safeDirection = direction || 'Product';
 
+  // 기존 아이디어(타이틀) 목록을 보기 좋게 프롬프트에 포함
+  const excludeList = existingTitles.length
+    ? `Here is a list of ideas that have already been generated on the canvas:\n${existingTitles.map(t => `- ${t}`).join('\n')}
+Do NOT propose any idea that matches, paraphrases, or has the same meaning as any of these.`
+    : "";
+
   const directionDetails = {
-    Product: `Propose a new and creative idea related to "${topic}". 
-Avoid using existing idea titles: ${existingTitles.join(', ')}.`,
-
-    Process: `List 5–7 production or workflow processes that could feasibly support the product idea "${coreProductIdea?.title}" in distinct ways. 
-Include a wide range of strategies, from traditional methods to emerging technologies and speculative approaches. 
-Be specific and creative — consider combining software and hardware processes, using automation, AI, edge computing, supply chain decentralization, crowdsourced production, or adaptive manufacturing systems. 
-Ensure that no two suggestions are alike and that they apply to different industry settings or scales to reduce duplication.`,
-
-    Market: `Describe 5 unique market-entry or customer engagement strategies for the product idea "${coreProductIdea?.title}".
-Avoid repeating or paraphrasing any of these existing concepts: ${existingTitles.join('; ')}.
-Each strategy should involve different channels, segmentation approaches, pricing models, or promotional methods.
-Encourage the use of cross-industry examples, niche targeting, or hybrid digital-physical campaigns.`,
-
-    Resource: `Explain 5 distinct strategies for sourcing, reusing, or optimizing resources for the product idea "${coreProductIdea?.title}".
-Avoid duplicating or slightly rewording previous examples: ${existingTitles.join('; ')}.
-Include various approaches like circular economy models, resource-sharing platforms, green logistics, or novel material usage.`,
-
-    Organization: `Propose 5 different organizational structures or collaboration models to support the implementation of "${coreProductIdea?.title}".
-Avoid duplicating formats from these existing suggestions: ${existingTitles.join('; ')}.
-Include a wide range of models such as cooperatives, DAOs, incubator ecosystems, project-based teaming, or AI-assisted coordination.`
+    Product: `
+Propose a radically new and imaginative idea related to "${topic}".
+${excludeList}
+Focus on originality. Do NOT suggest any idea that could be considered similar, paraphrased, or reworded from the above list.
+Surprise an industry expert—favor ideas that are bold, unusual, or would seem odd at first glance, as long as they make sense.
+If the idea feels "too weird," that's a good sign.
+`,
+    Process: `
+List 5–7 production or workflow processes that could feasibly support the product idea "${coreProductIdea?.title}" in distinct ways.
+${excludeList}
+Include both traditional and speculative approaches, but do NOT repeat or rephrase any listed ideas. Be specific, creative, and strive for methods that would be surprising even to professionals in the field.
+`,
+    Market: `
+Describe 5 unique market-entry or customer engagement strategies for the product idea "${coreProductIdea?.title}".
+${excludeList}
+Do NOT repeat, paraphrase, or slightly reword any of the existing ideas. Use cross-industry examples, niche targeting, or hybrid campaigns—choose strategies that would stand out as highly original or unexpected.
+`,
+    Resource: `
+Explain 5 distinct strategies for sourcing, reusing, or optimizing resources for the product idea "${coreProductIdea?.title}".
+${excludeList}
+Do NOT duplicate, rephrase, or use similar approaches from the excluded ideas. Favor radically new or counterintuitive resource strategies.
+`,
+    Organization: `
+Propose 5 different organizational structures or collaboration models to support the implementation of "${coreProductIdea?.title}".
+${excludeList}
+Avoid duplicating, paraphrasing, or slightly rewording any format in the exclusion list. Focus on models that are highly original or speculative, possibly blending concepts across industries.
+`
   };
 
-  return `You are a domain expert in ${safeDirection.toLowerCase()} strategy and systems.
+  return `You are a domain expert in ${safeDirection.toLowerCase()} strategy and radical innovation.
 
 ${safeDirection === 'Product' 
-  ? `Topic: "${topic}"` 
+  ? `Topic: "${topic}"`
   : `Product Idea: "${coreProductIdea?.title}"
 Description: ${coreProductIdea?.description}`}
 
@@ -44,22 +56,16 @@ ${directionDetails[safeDirection]}
 
 Respond in this exact format:
 Title: [2–3 word concept or keyword]
-Description: [1–2 sentence explanation of a method, model, or strategy]`;
+Description: [1–2 sentence explanation of a highly original, surprising, or speculative idea]
+`;
 }
 
 /**
  * Returns a prompt for combining two existing concepts into one new idea.
+ * 기존 아이디어/요소와 중복되지 않는 새로운 결합을 유도.
  */
 export function getCombinePrompt(topic, sourceTitle, targetTitle, direction, coreProductIdea) {
   const base = coreProductIdea?.title || topic;
-
-  const task = {
-    Product: `Combine the two concepts below to create a novel product or service.`,
-    Process: `Given the product idea "${base}", combine these two process-related concepts to propose a new operational method.`,
-    Market: `For the product idea "${base}", combine the concepts to define a new customer segment, entry method, or marketing model.`,
-    Resource: `Considering the product idea "${base}", combine these two resource-related ideas to optimize material use, logistics, or infrastructure.`,
-    Organization: `In the context of "${base}", combine the following models to propose an innovative organizational structure or collaboration system.`
-  };
 
   return `You are an expert in ideation and strategic innovation.
 
@@ -69,23 +75,34 @@ Description: ${coreProductIdea.description}`
   : `Topic: "${topic}"`}
 Direction: ${direction}
 
-${task[direction]}
+Combine the two concepts below to create a novel and original idea. 
+Do NOT simply merge the words or use common industry combinations—strive for a result that would be surprising or non-obvious to experts.
 
 Concept 1: ${sourceTitle}  
 Concept 2: ${targetTitle}
 
 Respond in this exact format:
 Title: [2–3 word idea title]  
-Description: [1 sentence explanation that logically combines both concepts and fits the "${direction}" direction]`;
+Description: [1 sentence explanation that logically combines both concepts and fits the "${direction}" direction]
+`;
 }
 
-export function getDecomposePrompt(topic, ideaTitle, ideaDescription) {
+/**
+ * Returns a prompt for decomposing an idea into elements.
+ * 분해 시에도 기존 요소와 중복/유사하지 않도록 지시 가능.
+ */
+export function getDecomposePrompt(topic, ideaTitle, ideaDescription, existingElements = []) {
+  const excludeList = existingElements.length
+    ? `Avoid using the following elements which already exist:\n${existingElements.map(t => `- ${t}`).join('\n')}
+Do NOT generate elements with the same meaning or phrasing.`
+    : "";
   return `You are a creative system design expert.
 
 Topic: "${topic}" (This is a real-world topic, not fictional)
 Task: Decompose the following idea into 3 key conceptual elements based on its specifics.
 Idea: "${ideaTitle}"
 Description: "${ideaDescription}"
+${excludeList}
 Respond in this exact format:
 Element 1: [2-3 words]
 Element 2: [2-3 words]
